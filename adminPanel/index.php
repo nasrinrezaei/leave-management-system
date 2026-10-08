@@ -1,4 +1,7 @@
 <?php
+include("../functions/auth.php");
+
+requireLogin();
 
 include("../functions/function.php");
 ?>
@@ -16,7 +19,7 @@ include("../functions/function.php");
   <!-- Bootstrap rtl -->
   <link rel="stylesheet" href="template/dist/css/rtl.css">
   <!-- persian Date Picker -->
-  <link rel="stylesheet" href="template/dist/css/persian-datepicker-0.4.5.min">
+  <link rel="stylesheet" href="template/dist/css/persian-datepicker-0.4.5.min.css">
   <!-- Font Awesome -->
   <link rel="stylesheet" href="template/bower_components/font-awesome/css/font-awesome.min.css">
   <!-- Ionicons -->

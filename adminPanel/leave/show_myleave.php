@@ -1,327 +1,482 @@
 <?php
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 include("../../functions/function.php");
+include("../../functions/conection.php");
+
+if (!isset($_SESSION['employee_id'])) {
+    header("Location: /adminPanel/login.php");
+    exit;
+}
+
+$employee_id = (int)$_SESSION['employee_id'];
+
+$sql = "
+    SELECT
+        leave_id,
+        leave_type,
+        start_date,
+        end_date,
+        comment,
+        status,
+        total_hours
+    FROM `leave`
+    WHERE employee_id = ?
+    ORDER BY leave_id DESC
+";
+
+$stmt = mysqli_prepare($Connect, $sql);
+
+if (!$stmt) {
+    die("خطا در آماده‌سازی درخواست: " . mysqli_error($Connect));
+}
+
+mysqli_stmt_bind_param($stmt, "i", $employee_id);
+
+if (!mysqli_stmt_execute($stmt)) {
+    mysqli_stmt_close($stmt);
+    die("خطا در دریافت اطلاعات مرخصی: " . mysqli_error($Connect));
+}
+
+$data = mysqli_stmt_get_result($stmt);
+
+if (!$data) {
+    mysqli_stmt_close($stmt);
+    die("خطا در دریافت اطلاعات مرخصی: " . mysqli_error($Connect));
+}
+
+function getLeaveType($type)
+{
+    switch ($type) {
+        case 'illness':
+            return 'استعلاجی';
+
+        case 'without_salary':
+            return 'بدون حقوق';
+
+        case 'entitlent':
+            return 'استحقاقی';
+
+        default:
+            return 'نامشخص';
+    }
+}
+
+function getLeaveStatus($status)
+{
+    switch ($status) {
+        case 'approval':
+            return 'تأیید شده';
+
+        case 'disapproval':
+            return 'رد شده';
+
+        case 'manager2_approval':
+            return 'تأیید مدیر دوم';
+
+        case 'not-define':
+            return 'در انتظار بررسی';
+
+        default:
+            return 'نامشخص';
+    }
+}
+
 ?>
 
 <!DOCTYPE html>
 <html>
+
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>داشبورد | سامانه مدیریت کارکرد کارمندان</title>
-  <!-- Tell the browser to be responsive to screen width -->
-  <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
-  <!-- Bootstrap 3.3.7 -->
-  <link rel="stylesheet" href="../template/dist/css/bootstrap-theme.css">
-  <!-- Bootstrap rtl -->
-  <link rel="stylesheet" href="../template/dist/css/rtl.css">
-  <!-- persian Date Picker -->
-  <link rel="stylesheet" href="../template/dist/css/persian-datepicker-0.4.5.min">
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="../template/bower_components/font-awesome/css/font-awesome.min.css">
-  <!-- Ionicons -->
-  <link rel="stylesheet" href="../template/bower_components/Ionicons/css/ionicons.min.css">
-  <!-- Theme style -->
-  <link rel="stylesheet" href="../template/dist/css/AdminLTE.css">
-  <!-- AdminLTE Skins. Choose a skin from the css/skins
-       folder instead of downloading all of them to reduce the load. -->
-  <link rel="stylesheet" href="../template/dist/css/skins/_all-skins.min.css">
-  <!-- Morris chart -->
-  <link rel="stylesheet" href="../template/bower_components/morris.js/morris.css">
-  <!-- jvectormap -->
-  <link rel="stylesheet" href="../template/bower_components/jvectormap/jquery-jvectormap.css">
-  <!-- Daterange picker -->
-  <link rel="stylesheet" href="../template/bower_components/bootstrap-daterangepicker/daterangepicker.css">
-  <!-- bootstrap wysihtml5 - text editor -->
-  <link rel="stylesheet" href="../template/plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.min.css">
 
-  <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
-  <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
-  <!--[if lt IE 9]>
-  <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
-  <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
-  <![endif]-->
+    <meta charset="utf-8">
 
-  <!-- Google Font -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>سامانه مدیریت کارکرد کارمندان</title>
+
+    <meta
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+        name="viewport"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../template/dist/css/persian-datepicker-0.4.5.min.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../template/dist/css/bootstrap-theme.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../template/dist/css/rtl.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../template/bower_components/font-awesome/css/font-awesome.min.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../template/bower_components/Ionicons/css/ionicons.min.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../template/dist/css/AdminLTE.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../template/dist/css/skins/_all-skins.min.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../template/bower_components/morris.js/morris.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../template/bower_components/jvectormap/jquery-jvectormap.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../template/bower_components/bootstrap-daterangepicker/daterangepicker.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../template/plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.min.css"
+    >
+
+</head>
+
 <body class="hold-transition skin-blue sidebar-mini">
+
 <div class="wrapper">
 
-<?php
-@includepage("../inc_template/header");
-@includepage("../inc_template/menu_cop");
+    <?php
+
+    @includepage("../inc_template/header");
+    @includepage("../inc_template/menu");
+
+    ?>
+
+    <div class="content-wrapper">
+
+        <section class="content-header">
+
+            <h1>
+                مرخصی‌های من
+            </h1>
+
+            <ol class="breadcrumb">
+
+                <li>
+
+                    <a href="/adminPanel/index.php">
+
+                        <i class="fa fa-dashboard"></i>
+
+                        خانه
+
+                    </a>
+
+                </li>
+
+                <li class="active">
+                    مرخصی‌های من
+                </li>
+
+            </ol>
+
+        </section>
 
 
-?>
-  
+        <section class="content">
 
-  <!-- Content Wrapper. Contains page content -->
-  <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <section class="content-header">
-      <h1>مرخصی</h1>
-      <ol class="breadcrumb">
-        <li><a href="#"><i class="fa fa-dashboard"></i> خانه</a></li>
-        <li class="active">داشبورد</li>
-      </ol>
-    </section>
+            <div class="row">
 
-    <!-- Main content -->
-    <section class="content">
-      <!-- Small boxes (Stat box) -->
-      <div class="row"><!-- ./col --><!-- ./col -->
-        <!-- ./col -->
-        <!-- ./col -->
-      </div>
-      <!-- /.row -->
-      <div class="row"></div>
-      <!-- Main row -->
-      <div class="row">
-        <!-- right col --><!-- /.right col -->
-        <!-- left col (We are only adding the ID to make the widgets sortable)--><!-- left col -->
-      </div>
-      <!-- /.row (main row) -->
+                <div class="col-xs-12">
 
-    </section>
-    <!-- /.content -->
-  </div>
-  <!-- /.content-wrapper -->
-  <footer class="main-footer text-left"> 
-    <strong></a></strong>
-  </footer>
+                    <div class="box box-primary">
 
-  <!-- Control Sidebar -->
-  <aside class="control-sidebar control-sidebar-dark">
-    <!-- Create the tabs -->
-    <ul class="nav nav-tabs nav-justified control-sidebar-tabs">
-      <li><a href="#control-sidebar-home-tab" data-toggle="tab"><i class="fa fa-home"></i></a></li>
-      <li><a href="#control-sidebar-settings-tab" data-toggle="tab"><i class="fa fa-gears"></i></a></li>
-    </ul>
-    <!-- Tab panes -->
-    <div class="tab-content">
-      <!-- Home tab content -->
-      <div class="tab-pane" id="control-sidebar-home-tab">
-        <h3 class="control-sidebar-heading">فعالیت ها</h3>
-        <ul class="control-sidebar-menu">
-          <li>
-            <a href="javascript:void(0)">
-              <i class="menu-icon fa fa-birthday-cake bg-red"></i>
+                        <div class="box-header with-border">
 
-              <div class="menu-info">
-                <h4 class="control-sidebar-subheading">تولد غلوم</h4>
+                            <h3 class="box-title">
+                                لیست مرخصی‌های من
+                            </h3>
 
-                <p>۲۴ مرداد</p>
-              </div>
-            </a>
-          </li>
-          <li>
-            <a href="javascript:void(0)">
-              <i class="menu-icon fa fa-user bg-yellow"></i>
+                        </div>
 
-              <div class="menu-info">
-                <h4 class="control-sidebar-subheading">آپدیت پروفایل سجاد</h4>
 
-                <p>تلفن جدید (800)555-1234</p>
-              </div>
-            </a>
-          </li>
-          <li>
-            <a href="javascript:void(0)">
-              <i class="menu-icon fa fa-envelope-o bg-light-blue"></i>
+                        <div class="box-body">
 
-              <div class="menu-info">
-                <h4 class="control-sidebar-subheading">نورا به خبرنامه پیوست</h4>
+                            <div class="table-responsive">
 
-                <p>nora@example.com</p>
-              </div>
-            </a>
-          </li>
-          <li>
-            <a href="javascript:void(0)">
-              <i class="menu-icon fa fa-file-code-o bg-green"></i>
+                                <table
+                                    class="table table-bordered table-striped table-hover"
+                                >
 
-              <div class="menu-info">
-                <h4 class="control-sidebar-subheading">کرون جابز اجرا شد</h4>
+                                    <thead>
 
-                <p>۵ ثانیه پیش</p>
-              </div>
-            </a>
-          </li>
-        </ul>
-        <!-- /.control-sidebar-menu -->
+                                        <tr>
 
-        <h3 class="control-sidebar-heading">پیشرفت کارها</h3>
-        <ul class="control-sidebar-menu">
-          <li>
-            <a href="javascript:void(0)">
-              <h4 class="control-sidebar-subheading">
-                ساخت پوستر های تبلیغاتی
-                <span class="label label-danger pull-left">70%</span>
-              </h4>
+                                            <th>
+                                                ردیف
+                                            </th>
 
-              <div class="progress progress-xxs">
-                <div class="progress-bar progress-bar-danger" style="width: 70%"></div>
-              </div>
-            </a>
-          </li>
-          <li>
-            <a href="javascript:void(0)">
-              <h4 class="control-sidebar-subheading">
-                آپدیت رزومه
-                <span class="label label-success pull-left">95%</span>
-              </h4>
+                                            <th>
+                                                نوع مرخصی
+                                            </th>
 
-              <div class="progress progress-xxs">
-                <div class="progress-bar progress-bar-success" style="width: 95%"></div>
-              </div>
-            </a>
-          </li>
-          <li>
-            <a href="javascript:void(0)">
-              <h4 class="control-sidebar-subheading">
-                آپدیت لاراول
-                <span class="label label-warning pull-left">50%</span>
-              </h4>
+                                            <th>
+                                                تاریخ شروع
+                                            </th>
 
-              <div class="progress progress-xxs">
-                <div class="progress-bar progress-bar-warning" style="width: 50%"></div>
-              </div>
-            </a>
-          </li>
-          <li>
-            <a href="javascript:void(0)">
-              <h4 class="control-sidebar-subheading">
-                بخش پشتیبانی سایت
-                <span class="label label-primary pull-left">68%</span>
-              </h4>
+                                            <th>
+                                                تاریخ پایان
+                                            </th>
 
-              <div class="progress progress-xxs">
-                <div class="progress-bar progress-bar-primary" style="width: 68%"></div>
-              </div>
-            </a>
-          </li>
-        </ul>
-        <!-- /.control-sidebar-menu -->
+                                            <th>
+                                                مدت
+                                            </th>
 
-      </div>
-      <!-- /.tab-pane -->
-      <!-- Stats tab content -->
-      <div class="tab-pane" id="control-sidebar-stats-tab">وضعیت</div>
-      <!-- /.tab-pane -->
-      <!-- Settings tab content -->
-      <div class="tab-pane" id="control-sidebar-settings-tab">
-        <form method="post">
-          <h3 class="control-sidebar-heading">تنظیمات عمومی</h3>
+                                            <th>
+                                                توضیحات
+                                            </th>
 
-          <div class="form-group">
-            <label class="control-sidebar-subheading">
-              گزارش کنترلر پنل
-              <input type="checkbox" class="pull-left" checked>
-            </label>
+                                            <th>
+                                                وضعیت
+                                            </th>
 
-            <p>
-              ثبت تمامی فعالیت های مدیران
-            </p>
-          </div>
-          <!-- /.form-group -->
+                                        </tr>
 
-          <div class="form-group">
-            <label class="control-sidebar-subheading">
-              ایمیل مارکتینگ
-              <input type="checkbox" class="pull-left" checked>
-            </label>
+                                    </thead>
 
-            <p>
-              اجازه به کاربران برای ارسال ایمیل
-            </p>
-          </div>
-          <!-- /.form-group -->
 
-          <div class="form-group">
-            <label class="control-sidebar-subheading">
-              در دست تعمیرات
-              <input type="checkbox" class="pull-left" checked>
-            </label>
+                                    <tbody>
 
-            <p>
-              قرار دادن سایت در حالت در دست تعمیرات
-            </p>
-          </div>
-          <!-- /.form-group -->
+                                    <?php
 
-          <h3 class="control-sidebar-heading">تنظیمات گفتگوها</h3>
+                                    $counter = 1;
 
-          <div class="form-group">
-            <label class="control-sidebar-subheading">
-              آنلاین بودن من را نشان نده
-              <input type="checkbox" class="pull-left" checked>
-            </label>
-          </div>
-          <!-- /.form-group -->
+                                    if (mysqli_num_rows($data) > 0):
 
-          <div class="form-group">
-            <label class="control-sidebar-subheading">
-              اعلان ها
-              <input type="checkbox" class="pull-left">
-            </label>
-          </div>
-          <!-- /.form-group -->
+                                        while ($row = mysqli_fetch_assoc($data)):
 
-          <div class="form-group">
-            <label class="control-sidebar-subheading">
-              حذف تاریخته گفتگوهای من
-              <a href="javascript:void(0)" class="text-red pull-left"><i class="fa fa-trash-o"></i></a>
-            </label>
-          </div>
-          <!-- /.form-group -->
-        </form>
-      </div>
-      <!-- /.tab-pane -->
+                                    ?>
+
+                                        <tr>
+
+                                            <td>
+                                                <?= $counter ?>
+                                            </td>
+
+                                            <td>
+                                                <?= htmlspecialchars(
+                                                    getLeaveType($row['leave_type']),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td>
+                                                <?= htmlspecialchars(
+                                                    $row['start_date'],
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td>
+                                                <?= htmlspecialchars(
+                                                    $row['end_date'],
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td>
+                                                <?= (int)$row['total_hours'] ?>
+                                                ساعت
+                                            </td>
+
+                                            <td>
+                                                <?= htmlspecialchars(
+                                                    $row['comment'] ?? '',
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td>
+
+                                                <?php
+
+                                                $status = getLeaveStatus(
+                                                    $row['status']
+                                                );
+
+                                                if ($row['status'] === 'approval'):
+
+                                                ?>
+
+                                                    <span class="label label-success">
+                                                        <?= $status ?>
+                                                    </span>
+
+                                                <?php
+
+                                                elseif (
+                                                    $row['status'] === 'disapproval'
+                                                ):
+
+                                                ?>
+
+                                                    <span class="label label-danger">
+                                                        <?= $status ?>
+                                                    </span>
+
+                                                <?php
+
+                                                elseif (
+                                                    $row['status'] === 'manager2_approval'
+                                                ):
+
+                                                ?>
+
+                                                    <span class="label label-info">
+                                                        <?= $status ?>
+                                                    </span>
+
+                                                <?php else: ?>
+
+                                                    <span class="label label-warning">
+                                                        <?= $status ?>
+                                                    </span>
+
+                                                <?php endif; ?>
+
+                                            </td>
+
+                                        </tr>
+
+                                    <?php
+
+                                            $counter++;
+
+                                        endwhile;
+
+                                    else:
+
+                                    ?>
+
+                                        <tr>
+
+                                            <td
+                                                colspan="7"
+                                                class="text-center"
+                                            >
+
+                                                هنوز هیچ مرخصی‌ای برای شما ثبت نشده است.
+
+                                            </td>
+
+                                        </tr>
+
+                                    <?php endif; ?>
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
     </div>
-  </aside>
-  <!-- /.control-sidebar -->
-  <!-- Add the sidebar's background. This div must be placed
-       immediately after the control sidebar -->
-  <div class="control-sidebar-bg"></div>
-</div>
-<!-- ./wrapper -->
 
-<!-- jQuery 3 -->
+
+    <footer class="main-footer text-left">
+
+        <strong></strong>
+
+    </footer>
+
+
+    <div class="control-sidebar-bg"></div>
+
+</div>
+
+
 <script src="../template/bower_components/jquery/dist/jquery.min.js"></script>
-<!-- jQuery UI 1.11.4 -->
+
 <script src="../template/bower_components/jquery-ui/jquery-ui.min.js"></script>
-<!-- Resolve conflict in jQuery UI tooltip with Bootstrap tooltip -->
+
 <script>
-  $.widget.bridge('uibutton', $.ui.button);
+    $.widget.bridge('uibutton', $.ui.button);
 </script>
-<!-- Bootstrap 3.3.7 -->
+
 <script src="../template/bower_components/bootstrap/dist/js/bootstrap.min.js"></script>
-<!-- Morris.js charts -->
+
 <script src="../template/bower_components/raphael/raphael.min.js"></script>
+
 <script src="../template/bower_components/morris.js/morris.min.js"></script>
-<!-- Sparkline -->
-<script src="../template/bower_components/jquery-sparkline/dist/jquery.sparkline.min.js"></script>
-<!-- jvectormap -->
+
+<script src="../template/bower_components/jquery-sparkline/jquery.sparkline.min.js"></script>
+
 <script src="../template/plugins/jvectormap/jquery-jvectormap-1.2.2.min.js"></script>
+
 <script src="../template/plugins/jvectormap/jquery-jvectormap-world-mill-en.js"></script>
-<!-- jQuery Knob Chart -->
+
 <script src="../template/bower_components/jquery-knob/dist/jquery.knob.min.js"></script>
-<!-- daterangepicker -->
+
 <script src="../template/bower_components/moment/min/moment.min.js"></script>
+
 <script src="../template/bower_components/bootstrap-daterangepicker/daterangepicker.js"></script>
-<!-- datepicker -->
+
 <script src="../template/bower_components/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js"></script>
-<!-- Bootstrap WYSIHTML5 -->
+
 <script src="../template/plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js"></script>
-<!-- Slimscroll -->
+
 <script src="../template/bower_components/jquery-slimscroll/jquery.slimscroll.min.js"></script>
-<!-- FastClick -->
+
 <script src="../template/bower_components/fastclick/lib/fastclick.js"></script>
-<!-- AdminLTE App -->
+
 <script src="../template/dist/js/adminlte.min.js"></script>
-<!-- AdminLTE dashboard demo (This is only for demo purposes) -->
+
 <script src="../template/dist/js/pages/dashboard.js"></script>
-<!-- AdminLTE for demo purposes -->
+
 <script src="../template/dist/js/demo.js"></script>
+
+<script src="../template/dist/js/persian-date-0.1.8.min.js"></script>
+
+<script src="../template/dist/js/persian-datepicker-0.4.5.min.js"></script>
+
+<script src="../template/plugins/input-mask/jquery.inputmask.js"></script>
+
+<script src="../template/plugins/input-mask/jquery.inputmask.date.extensions.js"></script>
+
+<script src="../template/plugins/input-mask/jquery.inputmask.extensions.js"></script>
+
 </body>
+
 </html>
